@@ -27,7 +27,7 @@ type Output struct {
 	ModelVersionNumber int    `json:"modelVersionNumber"`
 }
 
-const baseURL = "https://singlestore.com/engine-sso"
+const baseURL = "https://portal.singlestore.com/engine-sso"
 
 func main() {
 	main2(os.Stdout)
