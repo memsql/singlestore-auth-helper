@@ -102,7 +102,10 @@ func main2(stdout io.Writer) {
 		values["db"] = config.Databases
 	}
 	url := baseURL + "?" + values.Encode()
-	browser.OpenURL(url)
+	err = browser.OpenURL(url)
+	if err != nil {
+		panic("Could not open browser: " + err.Error())
+	}
 
 	wg.Wait()
 

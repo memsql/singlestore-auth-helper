@@ -75,7 +75,8 @@ mv %s/.args.$$ %s/args.$$
 		}
 	}()
 	t.Logf("Watcher on %s started", dir)
-	watcher.Add(dir)
+	err = watcher.Add(dir)
+	require.NoError(t, err, "add watcher directory")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
