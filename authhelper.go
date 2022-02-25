@@ -19,9 +19,10 @@ import (
 	"github.com/pkg/browser"
 )
 
-type Output struct {
-	ExpiresAt          string `json:"expire"` // RFC3339 format
-	Password           string `json:"password"`
+// AuthHelperOutput is written to STDOUT as JSON
+type AuthHelperOutput struct {
+	ExpiresAt          string `json:"expire"`   // RFC3339 format
+	PasswordToken      string `json:"password"` // A JWT
 	Username           string `json:"username"`
 	Email              string `json:"email,omitempty"`
 	ModelVersionNumber int    `json:"modelVersionNumber"`
@@ -160,9 +161,9 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false
 	}
-	output := Output{
+	output := AuthHelperOutput{
 		ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
-		Password:           string(raw),
+		PasswordToken:      string(raw),
 		Email:              claims.Email,
 		Username:           claims.DBUsername,
 		ModelVersionNumber: 1,

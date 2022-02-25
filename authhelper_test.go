@@ -91,7 +91,7 @@ mv %s/.args.$$ %s/args.$$
 		os.Args = os.Args[:1]
 		main2(&buf)
 
-		var output Output
+		var output AuthHelperOutput
 		t.Log("auth helper output", buf.String())
 		err = json.Unmarshal(buf.Bytes(), &output)
 		require.NoErrorf(t, err, "unmarshal output from helper")
@@ -101,7 +101,7 @@ mv %s/.args.$$ %s/args.$$
 		assert.Less(t, time.Now().Format(time.RFC3339), output.ExpiresAt, "expires")
 
 		var mapClaims jwt.MapClaims
-		_, err := jwt.ParseWithClaims(output.Password, &mapClaims, func(token *jwt.Token) (interface{}, error) {
+		_, err := jwt.ParseWithClaims(output.PasswordToken, &mapClaims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("a secret"), nil
 		})
 		if assert.NoError(t, err, "decode token in output") {
