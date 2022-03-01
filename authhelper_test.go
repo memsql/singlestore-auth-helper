@@ -114,7 +114,9 @@ mv %s/.args.$$ %s/args.$$
 func fakeBrowser(t *testing.T, us string) error {
 	us = strings.TrimSuffix(us, "\n")
 	t.Logf("Browser invoked with %s", us)
-	if !strings.HasPrefix(us, baseURL) {
+	os.Args = os.Args[:1]
+	config := getConfig()
+	if !strings.HasPrefix(us, config.BaseURL) {
 		return fmt.Errorf("url does not start with base url: %s", us)
 	}
 	u, err := url.Parse(us)

@@ -28,18 +28,16 @@ type AuthHelperOutput struct {
 	ModelVersionNumber int    `json:"modelVersionNumber"`
 }
 
-const baseURL = "https://portal.singlestore.com/engine-sso"
-
 func main() {
 	main2(os.Stdout)
 }
 
-func main2(stdout io.Writer) {
-	var config struct {
-		Email     string   `flag:"email" validate:"omitempty,validate" help:"users SSO email address, if known"`
-		ClusterID []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
-		Databases []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
-	}
+func getConfig() (config struct {
+	BaseURL   string   `flag:"baseURL" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
+	Email     string   `flag:"email" validate:"omitempty,validate" help:"users SSO email address, if known"`
+	ClusterID []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
+	Databases []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
+}) {
 	flagFiller := nfigure.PosixFlagHandler(nfigure.WithHelpText(""))
 	reg := nfigure.NewRegistry(nfigure.WithFiller("flag", flagFiller))
 	err := reg.Request(&config)
@@ -50,6 +48,11 @@ func main2(stdout io.Writer) {
 	if err != nil {
 		panic(err.Error())
 	}
+	return
+}
+
+func main2(stdout io.Writer) {
+	config := getConfig()
 
 	path := "/" + randomdata.Alphanumeric(20)
 
@@ -102,8 +105,8 @@ func main2(stdout io.Writer) {
 	if len(config.Databases) != 0 {
 		values["db"] = config.Databases
 	}
-	url := baseURL + "?" + values.Encode()
-	err = browser.OpenURL(url)
+	url := config.BaseURL + "?" + values.Encode()
+	err := browser.OpenURL(url)
 	if err != nil {
 		panic("Could not open browser: " + err.Error())
 	}
