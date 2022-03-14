@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/fsnotify/fsnotify v1.5.1
-	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/muir/nfigure v0.0.2
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8

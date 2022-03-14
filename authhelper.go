@@ -24,7 +24,7 @@ type AuthHelperOutput struct {
 	ExpiresAt          string `json:"expire"`   // RFC3339 format
 	PasswordToken      string `json:"password"` // A JWT
 	Username           string `json:"username"`
-	Email              string `json:"email,omitempty"`
+	Email              string `json:"email"`
 	ModelVersionNumber int    `json:"modelVersionNumber"`
 }
 
