@@ -137,6 +137,7 @@ func (c Claims) Valid() error {
 }
 
 func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string) bool {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	defer r.Body.Close()
 	if r.Method != "POST" {
 		http.Error(w, "POST expected", 400)
