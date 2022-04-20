@@ -29,15 +29,18 @@ type AuthHelperOutput struct {
 }
 
 func main() {
-	main2(os.Stdout)
+	main2(os.Stdout, getConfig())
 }
 
-func getConfig() (config struct {
-	BaseURL   string   `flag:"baseURL" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
-	Email     string   `flag:"email" validate:"omitempty,validate" help:"users SSO email address, if known"`
-	ClusterID []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
-	Databases []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
-}) {
+type configData struct {
+	BaseURL      string   `flag:"baseURL" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
+	Email        string   `flag:"email e" validate:"omitempty,validate" help:"users SSO email address, if known"`
+	ClusterID    []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
+	Databases    []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
+	OutputFormat string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
+}
+
+func getConfig() (config configData) {
 	flagFiller := nfigure.PosixFlagHandler(nfigure.WithHelpText(""))
 	reg := nfigure.NewRegistry(nfigure.WithFiller("flag", flagFiller))
 	err := reg.Request(&config)
@@ -51,9 +54,7 @@ func getConfig() (config struct {
 	return
 }
 
-func main2(stdout io.Writer) {
-	config := getConfig()
-
+func main2(stdout io.Writer, config configData) {
 	path := "/" + randomdata.Alphanumeric(20)
 
 	var wg sync.WaitGroup
@@ -62,7 +63,7 @@ func main2(stdout io.Writer) {
 	// Using httptest since it takes care of picking a random port
 	var svr *httptest.Server
 	svr = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		done := handle(w, r, svr, stdout, path)
+		done := handle(w, r, svr, stdout, path, config)
 		if done {
 			wg.Done()
 		}
@@ -136,7 +137,7 @@ func (c Claims) Valid() error {
 	return nil
 }
 
-func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string) bool {
+func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string, config configData) bool {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	defer r.Body.Close()
 	if r.Method != "POST" {
@@ -165,20 +166,27 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false
 	}
-	output := AuthHelperOutput{
-		ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
-		PasswordToken:      string(raw),
-		Email:              claims.Email,
-		Username:           claims.DBUsername,
-		ModelVersionNumber: 1,
+	switch config.OutputFormat {
+	case "jwt":
+		fmt.Fprintln(stdout, string(raw))
+	case "json":
+		output := AuthHelperOutput{
+			ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
+			PasswordToken:      string(raw),
+			Email:              claims.Email,
+			Username:           claims.DBUsername,
+			ModelVersionNumber: 1,
+		}
+		enc, err := json.Marshal(output)
+		if err != nil {
+			log.Printf("Could not marshal output: %s", err)
+			http.Error(w, "could not marshal output "+err.Error(), 500)
+			return false
+		}
+		fmt.Fprintln(stdout, string(enc))
+	default:
+		panic("unreachable")
 	}
-	enc, err := json.Marshal(output)
-	if err != nil {
-		log.Printf("Could not marshal output: %s", err)
-		http.Error(w, "could not marshal output "+err.Error(), 500)
-		return false
-	}
-	fmt.Fprintln(stdout, string(enc))
 	w.WriteHeader(204)
 	return true
 }

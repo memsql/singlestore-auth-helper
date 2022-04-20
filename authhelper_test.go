@@ -23,7 +23,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAuthHelper(t *testing.T) {
+func TestAuthHelperJSON(t *testing.T) {
+	testAuthHelper(t, "json")
+}
+
+func TestAuthHelperJWT(t *testing.T) {
+	testAuthHelper(t, "jwt")
+}
+
+func TestAuthHelperDefault(t *testing.T) {
+	testAuthHelper(t, "")
+}
+
+func testAuthHelper(t *testing.T, format string) {
 	dir, err := os.MkdirTemp("", "ahtest")
 	require.NoError(t, err, "mktmp")
 	defer os.RemoveAll(dir)
@@ -88,20 +100,32 @@ mv %s/.args.$$ %s/args.$$
 		defer wg.Done()
 		t.Log("Starting auth helper")
 		var buf bytes.Buffer
-		os.Args = os.Args[:1]
-		main2(&buf)
+		var args []string
+		if format != "" {
+			args = append(args, "-o", format)
+		}
+		main2(&buf, lockedGetConfig(args...))
 
 		var output AuthHelperOutput
 		t.Log("auth helper output", buf.String())
-		err = json.Unmarshal(buf.Bytes(), &output)
-		require.NoErrorf(t, err, "unmarshal output from helper")
+		var jwtString string
+		switch format {
+		case "json":
+			err = json.Unmarshal(buf.Bytes(), &output)
+			require.NoErrorf(t, err, "unmarshal output from helper")
 
-		assert.Equal(t, 1, output.ModelVersionNumber, "model version number")
-		assert.Equal(t, "foo@example.com", output.Email, "email")
-		assert.Less(t, time.Now().Format(time.RFC3339), output.ExpiresAt, "expires")
+			assert.Equal(t, 1, output.ModelVersionNumber, "model version number")
+			assert.Equal(t, "foo@example.com", output.Email, "email")
+			assert.Less(t, time.Now().Format(time.RFC3339), output.ExpiresAt, "expires")
 
+			jwtString = output.PasswordToken
+		case "", "jwt":
+			jwtString = string(buf.Bytes())
+		default:
+			assert.Fail(t, "unexpected format")
+		}
 		var mapClaims jwt.MapClaims
-		_, err := jwt.ParseWithClaims(output.PasswordToken, &mapClaims, func(token *jwt.Token) (interface{}, error) {
+		_, err := jwt.ParseWithClaims(jwtString, &mapClaims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("a secret"), nil
 		})
 		if assert.NoError(t, err, "decode token in output") {
@@ -111,11 +135,25 @@ mv %s/.args.$$ %s/args.$$
 	wg.Wait()
 }
 
+var configLock sync.Mutex
+
+// locked because we modify a global: os.Args
+func lockedGetConfig(args ...string) configData {
+	configLock.Lock()
+	defer configLock.Unlock()
+	argsCopy := make([]string, len(os.Args))
+	copy(argsCopy, os.Args)
+	defer func() {
+		os.Args = argsCopy
+	}()
+	os.Args = append([]string{os.Args[0]}, args...)
+	return getConfig()
+}
+
 func fakeBrowser(t *testing.T, us string) error {
 	us = strings.TrimSuffix(us, "\n")
 	t.Logf("Browser invoked with %s", us)
-	os.Args = os.Args[:1]
-	config := getConfig()
+	config := lockedGetConfig()
 	if !strings.HasPrefix(us, config.BaseURL) {
 		return fmt.Errorf("url does not start with base url: %s", us)
 	}
