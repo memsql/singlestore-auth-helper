@@ -14,3 +14,7 @@ from the browser.
 
 The idea is that the browser session will be used to capture a JWT. The JWT is the
 output so that the caller of the singlestore-auth-helper can use it for database access.
+
+```sh
+mysql -u $EMAIL_ADDRESS -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --password=`singlestore-auth-helper` --ssl=TRUE
+```
