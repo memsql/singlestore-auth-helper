@@ -24,18 +24,58 @@ import (
 )
 
 func TestAuthHelperJSON(t *testing.T) {
-	testAuthHelper(t, "json")
+	cases := []struct {
+		name   string
+		want   string
+		claims jwt.MapClaims
+	}{
+		{
+			name: "sub over email",
+			want: "foosubject",
+			claims: jwt.MapClaims{
+				"email": "foo@example.com",
+				"sub":   "foosubject",
+			},
+		},
+		{
+			name: "username over sub",
+			want: "fooperson",
+			claims: jwt.MapClaims{
+				"username": "fooperson",
+				"email":    "foo@example.com",
+				"sub":      "foosubject",
+			},
+		},
+		{
+			name: "no sub no username",
+			want: "",
+			claims: jwt.MapClaims{
+				"email": "foo@example.com",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testAuthHelper(t, "json", tc.want, tc.claims)
+		})
+	}
+
 }
 
 func TestAuthHelperJWT(t *testing.T) {
-	testAuthHelper(t, "jwt")
+	testAuthHelper(t, "jwt", "", jwt.MapClaims{
+		"email": "foo@example.com",
+	})
 }
 
 func TestAuthHelperDefault(t *testing.T) {
-	testAuthHelper(t, "")
+	testAuthHelper(t, "", "", jwt.MapClaims{
+		"email": "foo@example.com",
+	})
 }
 
-func testAuthHelper(t *testing.T, format string) {
+func testAuthHelper(t *testing.T, format string, expectedUsername string, baseClaims jwt.MapClaims) {
 	dir, err := os.MkdirTemp("", "ahtest")
 	require.NoError(t, err, "mktmp")
 	defer os.RemoveAll(dir)
@@ -73,7 +113,7 @@ mv %s/.args.$$ %s/args.$$
 					if err != nil {
 						watchResults <- err
 					} else {
-						watchResults <- fakeBrowser(t, string(raw))
+						watchResults <- fakeBrowser(t, string(raw), baseClaims)
 					}
 					return
 				}
@@ -115,8 +155,11 @@ mv %s/.args.$$ %s/args.$$
 			require.NoErrorf(t, err, "unmarshal output from helper")
 
 			assert.Equal(t, 1, output.ModelVersionNumber, "model version number")
-			assert.Equal(t, "foo@example.com", output.Email, "email")
+			if e, ok := baseClaims["email"]; ok {
+				assert.Equal(t, e.(string), output.Email, "email")
+			}
 			assert.Less(t, time.Now().Format(time.RFC3339), output.ExpiresAt, "expires")
+			assert.Equal(t, expectedUsername, output.Username, "username")
 
 			jwtString = output.PasswordToken
 		case "", "jwt":
@@ -150,7 +193,7 @@ func lockedGetConfig(args ...string) configData {
 	return getConfig()
 }
 
-func fakeBrowser(t *testing.T, us string) error {
+func fakeBrowser(t *testing.T, us string, claims jwt.MapClaims) error {
 	us = strings.TrimSuffix(us, "\n")
 	t.Logf("Browser invoked with %s", us)
 	config := lockedGetConfig()
@@ -167,10 +210,8 @@ func fakeBrowser(t *testing.T, us string) error {
 		return fmt.Errorf("no returnTo in URL %s", us)
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"email": "foo@example.com",
-		"exp":   time.Now().Add(time.Hour).Unix(),
-	})
+	claims["exp"] = time.Now().Add(time.Hour).Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte("a secret"))
 	if err != nil {
 		return fmt.Errorf("sign token %w", err)

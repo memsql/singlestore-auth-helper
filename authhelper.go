@@ -119,8 +119,8 @@ func main2(stdout io.Writer, config configData) {
 
 type Claims struct {
 	jwt.RegisteredClaims
-	Email      string `json:"email"`
-	DBUsername string `json:"dbUsername"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 func (c Claims) Valid() error {
@@ -167,12 +167,9 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		return false
 	}
 	var username string
-	switch {
-	case claims.DBUsername != "":
-		username = claims.DBUsername
-	case claims.Email != "":
-		username = claims.Email
-	default:
+	if claims.Username != "" {
+		username = claims.Username
+	} else {
 		username = claims.Subject
 	}
 	switch config.OutputFormat {
