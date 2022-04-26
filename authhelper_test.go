@@ -24,18 +24,70 @@ import (
 )
 
 func TestAuthHelperJSON(t *testing.T) {
-	testAuthHelper(t, "json")
+	cases := []struct {
+		name   string
+		want   string
+		claims jwt.MapClaims
+		code   int
+	}{
+		{
+			name: "sub over email",
+			want: "foosubject",
+			claims: jwt.MapClaims{
+				"email": "foo@example.com",
+				"sub":   "foosubject",
+			},
+		},
+		{
+			name: "username over sub",
+			want: "fooperson",
+			claims: jwt.MapClaims{
+				"username": "fooperson",
+				"email":    "foo@example.com",
+				"sub":      "foosubject",
+			},
+		},
+		{
+			name: "no sub no username",
+			want: "",
+			claims: jwt.MapClaims{
+				"email": "foo@example.com",
+			},
+			code: 400,
+		},
+		{
+			name: "no email",
+			want: "",
+			claims: jwt.MapClaims{
+				"username": "fooperson",
+			},
+			code: 400,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testAuthHelper(t, "json", tc.code, tc.want, tc.claims)
+		})
+	}
+
 }
 
 func TestAuthHelperJWT(t *testing.T) {
-	testAuthHelper(t, "jwt")
+	testAuthHelper(t, "jwt", 0, "", jwt.MapClaims{
+		"email": "foo@example.com",
+		"sub":   "foo",
+	})
 }
 
 func TestAuthHelperDefault(t *testing.T) {
-	testAuthHelper(t, "")
+	testAuthHelper(t, "", 0, "", jwt.MapClaims{
+		"email": "foo@example.com",
+		"sub":   "foo",
+	})
 }
 
-func testAuthHelper(t *testing.T, format string) {
+func testAuthHelper(t *testing.T, format string, httpError int, expectedUsername string, baseClaims jwt.MapClaims) {
 	dir, err := os.MkdirTemp("", "ahtest")
 	require.NoError(t, err, "mktmp")
 	defer os.RemoveAll(dir)
@@ -73,7 +125,7 @@ mv %s/.args.$$ %s/args.$$
 					if err != nil {
 						watchResults <- err
 					} else {
-						watchResults <- fakeBrowser(t, string(raw))
+						watchResults <- fakeBrowser(t, string(raw), baseClaims, httpError)
 					}
 					return
 				}
@@ -108,28 +160,40 @@ mv %s/.args.$$ %s/args.$$
 
 		var output AuthHelperOutput
 		t.Log("auth helper output", buf.String())
-		var jwtString string
-		switch format {
-		case "json":
-			err = json.Unmarshal(buf.Bytes(), &output)
-			require.NoErrorf(t, err, "unmarshal output from helper")
 
-			assert.Equal(t, 1, output.ModelVersionNumber, "model version number")
-			assert.Equal(t, "foo@example.com", output.Email, "email")
-			assert.Less(t, time.Now().Format(time.RFC3339), output.ExpiresAt, "expires")
+		if httpError == 0 {
+			var jwtString string
+			switch format {
+			case "json":
+				err = json.Unmarshal(buf.Bytes(), &output)
+				require.NoErrorf(t, err, "unmarshal output from helper")
 
-			jwtString = output.PasswordToken
-		case "", "jwt":
-			jwtString = string(buf.Bytes())
-		default:
-			assert.Fail(t, "unexpected format")
-		}
-		var mapClaims jwt.MapClaims
-		_, err := jwt.ParseWithClaims(jwtString, &mapClaims, func(token *jwt.Token) (interface{}, error) {
-			return []byte("a secret"), nil
-		})
-		if assert.NoError(t, err, "decode token in output") {
-			assert.Equal(t, "foo@example.com", mapClaims["email"], "email in token")
+				assert.Equal(t, 1, output.ModelVersionNumber, "model version number")
+				if e, ok := baseClaims["email"]; ok {
+					assert.Equal(t, e.(string), output.Email, "email")
+				}
+				assert.Less(t, time.Now().Format(time.RFC3339), output.ExpiresAt, "expires")
+				assert.Equal(t, expectedUsername, output.Username, "username")
+
+				jwtString = output.PasswordToken
+			case "", "jwt":
+				jwtString = string(buf.Bytes())
+			default:
+				assert.Fail(t, "unexpected format")
+			}
+			var mapClaims jwt.MapClaims
+			_, err := jwt.ParseWithClaims(jwtString, &mapClaims, func(token *jwt.Token) (interface{}, error) {
+				return []byte("a secret"), nil
+			})
+			if assert.NoError(t, err, "decode token in output") {
+				assert.Equal(t, "foo@example.com", mapClaims["email"], "email in token")
+			}
+		} else {
+			if format == "json" {
+				assert.Equal(t, "{}\n", buf.String(), "empty JSON expected")
+			} else {
+				assert.Equal(t, "", buf.String(), "no output expected")
+			}
 		}
 	}()
 	wg.Wait()
@@ -150,7 +214,7 @@ func lockedGetConfig(args ...string) configData {
 	return getConfig()
 }
 
-func fakeBrowser(t *testing.T, us string) error {
+func fakeBrowser(t *testing.T, us string, claims jwt.MapClaims, httpError int) error {
 	us = strings.TrimSuffix(us, "\n")
 	t.Logf("Browser invoked with %s", us)
 	config := lockedGetConfig()
@@ -167,10 +231,8 @@ func fakeBrowser(t *testing.T, us string) error {
 		return fmt.Errorf("no returnTo in URL %s", us)
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"email": "foo@example.com",
-		"exp":   time.Now().Add(time.Hour).Unix(),
-	})
+	claims["exp"] = time.Now().Add(time.Hour).Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte("a secret"))
 	if err != nil {
 		return fmt.Errorf("sign token %w", err)
@@ -186,7 +248,11 @@ func fakeBrowser(t *testing.T, us string) error {
 	if len(bod) != 0 {
 		t.Log("Recevied response:", string(bod))
 	}
-	if resp.StatusCode != 204 {
+	if httpError != 0 {
+		if resp.StatusCode != httpError {
+			return fmt.Errorf("POST to %s response code %d", returnTo, resp.StatusCode)
+		}
+	} else if resp.StatusCode != 204 {
 		return fmt.Errorf("POST to %s response code %d", returnTo, resp.StatusCode)
 	}
 	return nil

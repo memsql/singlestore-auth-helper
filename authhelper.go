@@ -38,6 +38,7 @@ type configData struct {
 	ClusterID    []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
 	Databases    []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
 	OutputFormat string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
+	HangAround   bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
 }
 
 func getConfig() (config configData) {
@@ -64,7 +65,7 @@ func main2(stdout io.Writer, config configData) {
 	var svr *httptest.Server
 	svr = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		done := handle(w, r, svr, stdout, path, config)
-		if done {
+		if done || !config.HangAround {
 			wg.Done()
 		}
 	}))
@@ -119,14 +120,17 @@ func main2(stdout io.Writer, config configData) {
 
 type Claims struct {
 	jwt.RegisteredClaims
-	Email      string `json:"email"`
-	DBUsername string `json:"dbUsername"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 func (c Claims) Valid() error {
 	err := c.RegisteredClaims.Valid()
 	if err != nil {
 		return err
+	}
+	if c.Subject == "" && c.Username == "" {
+		return fmt.Errorf("Missing 'sub' and 'username' in claims")
 	}
 	if c.Email == "" {
 		return fmt.Errorf("Missing 'email' in claims")
@@ -137,7 +141,12 @@ func (c Claims) Valid() error {
 	return nil
 }
 
-func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string, config configData) bool {
+func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string, config configData) (result bool) {
+	defer func() {
+		if !result && config.OutputFormat == "json" && !config.HangAround {
+			fmt.Fprintln(stdout, "{}")
+		}
+	}()
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	defer r.Body.Close()
 	if r.Method != "POST" {
@@ -166,6 +175,17 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false
 	}
+	if err := claims.Valid(); err != nil {
+		log.Printf("Could not parse claims: %s", err)
+		http.Error(w, "could not parse claims: "+err.Error(), 400)
+		return false
+	}
+	var username string
+	if claims.Username != "" {
+		username = claims.Username
+	} else {
+		username = claims.Subject
+	}
 	switch config.OutputFormat {
 	case "jwt":
 		fmt.Fprintln(stdout, string(raw))
@@ -174,7 +194,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 			ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
 			PasswordToken:      string(raw),
 			Email:              claims.Email,
-			Username:           claims.DBUsername,
+			Username:           username,
 			ModelVersionNumber: 1,
 		}
 		enc, err := json.Marshal(output)
