@@ -166,6 +166,15 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false
 	}
+	var username string
+	switch {
+	case claims.DBUsername != "":
+		username = claims.DBUsername
+	case claims.Email != "":
+		username = claims.Email
+	default:
+		username = claims.Subject
+	}
 	switch config.OutputFormat {
 	case "jwt":
 		fmt.Fprintln(stdout, string(raw))
@@ -174,7 +183,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 			ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
 			PasswordToken:      string(raw),
 			Email:              claims.Email,
-			Username:           claims.DBUsername,
+			Username:           username,
 			ModelVersionNumber: 1,
 		}
 		enc, err := json.Marshal(output)
