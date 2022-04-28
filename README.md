@@ -4,7 +4,7 @@
 
 Install:
 
-	go install github.com/memsql/singlestore-auth-helper
+	go install github.com/memsql/singlestore-auth-helper@latest
 
 ---
 
