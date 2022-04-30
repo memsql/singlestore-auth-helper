@@ -39,6 +39,7 @@ type configData struct {
 	Databases    []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
 	OutputFormat string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
 	HangAround   bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
+	Debug        bool     `flag:"debug d" help:"print the recevied claims"`
 }
 
 func getConfig() (config configData) {
@@ -174,6 +175,13 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		log.Printf("Could not parse claims: %s", err)
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false
+	}
+	if config.Debug {
+		log.Println("JWT", string(raw))
+		enc, err := json.MarshalIndent(claims, "", "  ")
+		if err == nil {
+			log.Println("Claims", string(enc))
+		}
 	}
 	if err := claims.Valid(); err != nil {
 		log.Printf("Could not parse claims: %s", err)
