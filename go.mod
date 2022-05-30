@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/fsnotify/fsnotify v1.5.3
+	github.com/fsnotify/fsnotify v1.5.4
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/muir/nfigure v0.1.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
@@ -21,6 +21,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/valyala/fastjson v1.6.3 // indirect
-	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
