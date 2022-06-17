@@ -146,6 +146,7 @@ mv %s/.args.$$ %s/args.$$
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		t.Log("watch results wait finished")
 		assert.NoError(t, <-watchResults, "watch results error")
 	}()
 	go func() {
