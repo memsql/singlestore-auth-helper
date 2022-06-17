@@ -177,7 +177,7 @@ mv %s/.args.$$ %s/args.$$
 
 				jwtString = output.PasswordToken
 			case "", "jwt":
-				jwtString = string(buf.Bytes())
+				jwtString = buf.String()
 			default:
 				assert.Fail(t, "unexpected format")
 			}
