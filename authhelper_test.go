@@ -135,6 +135,9 @@ mv %s/.args.$$ %s/args.$$
 				}
 				watchResults <- fmt.Errorf("watcher errors closed")
 				return
+			case <-time.After(10 * time.Second):
+				watchResults <- fmt.Errorf("no useful watcher event after 10 seconds")
+				return
 			}
 		}
 	}()
