@@ -26,3 +26,5 @@ With a singlestore client:
 ```sh
 singlestore -u $EMAIL_ADDRESS -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --password=`singlestore-auth-helper` --ssl=TRUE --enable-cleartext-plugin
 ```
+
+Note: the Safari browser is not compatible with the `singlestore-auth-helper` because it lacks a cross-site-scripting exception for localhost.

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -70,28 +69,6 @@ func main2(stdout io.Writer, config configData) {
 			wg.Done()
 		}
 	}))
-
-	// We do all of this to figure out when the request we're looking for has
-	// completed so that we can then exit the program.
-	activeConnections := make(map[string]struct{})
-	var lock sync.Mutex
-	svr.Config.ConnState = func(conn net.Conn, state http.ConnState) {
-		connStr := conn.RemoteAddr().Network() + conn.RemoteAddr().String()
-		lock.Lock()
-		defer lock.Unlock()
-		switch state {
-		case http.StateIdle, http.StateClosed, http.StateHijacked:
-			if _, ok := activeConnections[connStr]; ok {
-				wg.Done()
-				delete(activeConnections, connStr)
-			}
-		case http.StateActive, http.StateNew:
-			if _, ok := activeConnections[connStr]; !ok {
-				activeConnections[connStr] = struct{}{}
-				wg.Add(1)
-			}
-		}
-	}
 
 	svr.Start()
 

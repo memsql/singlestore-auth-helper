@@ -100,6 +100,9 @@ mv %s/.args.$$ %s/args.$$
 	err = os.WriteFile(dir+"/xdg-open", []byte(script), 0755)
 	require.NoError(t, err, "write script")
 
+	err = os.WriteFile(dir+"/open", []byte(script), 0755)
+	require.NoError(t, err, "write script")
+
 	os.Setenv("PATH", dir+":"+os.Getenv("PATH"))
 
 	watcher, err := fsnotify.NewWatcher()
@@ -135,6 +138,9 @@ mv %s/.args.$$ %s/args.$$
 				}
 				watchResults <- fmt.Errorf("watcher errors closed")
 				return
+			case <-time.After(10 * time.Second):
+				watchResults <- fmt.Errorf("no useful watcher event after 10 seconds")
+				return
 			}
 		}
 	}()
@@ -146,6 +152,7 @@ mv %s/.args.$$ %s/args.$$
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		t.Log("watch results wait finished")
 		assert.NoError(t, <-watchResults, "watch results error")
 	}()
 	go func() {
@@ -177,7 +184,7 @@ mv %s/.args.$$ %s/args.$$
 
 				jwtString = output.PasswordToken
 			case "", "jwt":
-				jwtString = string(buf.Bytes())
+				jwtString = buf.String()
 			default:
 				assert.Fail(t, "unexpected format")
 			}
