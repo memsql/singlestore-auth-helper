@@ -100,6 +100,9 @@ mv %s/.args.$$ %s/args.$$
 	err = os.WriteFile(dir+"/xdg-open", []byte(script), 0755)
 	require.NoError(t, err, "write script")
 
+	err = os.WriteFile(dir+"/open", []byte(script), 0755)
+	require.NoError(t, err, "write script")
+
 	os.Setenv("PATH", dir+":"+os.Getenv("PATH"))
 
 	watcher, err := fsnotify.NewWatcher()
