@@ -246,6 +246,18 @@ func fakeBrowser(t *testing.T, us string, claims jwt.MapClaims, httpError int) e
 	}
 
 	t.Logf("POST token to %s", returnTo)
+	optionsRequest, err := http.NewRequest(http.MethodOptions, returnTo, strings.NewReader(""))
+	if err != nil {
+		return fmt.Errorf("OPTIONS NewRequest %s error: %w", returnTo, err)
+	}
+	optionsResponse, err := http.DefaultClient.Do(optionsRequest)
+	if err != nil {
+		return fmt.Errorf("OPTIONS response to %s error: %w", returnTo, err)
+	}
+	allow := optionsResponse.Header.Get("Allow")
+	if allow != http.MethodPost {
+		return fmt.Errorf("invalid OPTIONS response to %s: %s", returnTo, allow)
+	}
 	resp, err := http.Post(returnTo, "text/plain", strings.NewReader(tokenString))
 	if err != nil {
 		return fmt.Errorf("POST to %s error: %w", returnTo, err)
