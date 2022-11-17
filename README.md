@@ -28,3 +28,21 @@ singlestore -u $EMAIL_ADDRESS -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --password=`
 ```
 
 Note: the Safari browser is not compatible with the `singlestore-auth-helper` because it lacks a cross-site-scripting exception for localhost.
+
+To set the results of the auth-helper in environment variables for use in scripting, use the `env-name` and `env-status` command line options. When these are used, the status and token are prefixed with the given name, such as:
+
+```sh
+authhelper --env-status=STATUS --env-name=TOKEN
+
+STATUS=0
+TOKEN=eyJhbGcibW9zc0BzaW5nbGVzdG9yZS5jb20iLCJhdWQiOlsiZW5naW5lIiwiIXBvcnRhbCJdLCJleHAiOjE
+```
+
+The output can be evaluated, thus setting the environment variables:
+
+```shell
+eval $(authhelper --env-status=STATUS --env-name=TOKEN)
+
+echo $TOKEN
+eyJhbGcibW9zc0BzaW5nbGVzdG9yZS5jb20iLCJhdWQiOlsiZW5naW5lIiwiIXBvcnRhbCJdLCJleHAiOjE
+```

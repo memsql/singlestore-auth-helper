@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -32,13 +33,17 @@ func main() {
 }
 
 type configData struct {
-	BaseURL      string   `flag:"baseURL" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
-	Email        string   `flag:"email e" validate:"omitempty,validate" help:"users SSO email address, if known"`
-	ClusterID    []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
-	Databases    []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
-	OutputFormat string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
-	HangAround   bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
-	Debug        bool     `flag:"debug d" help:"print the recevied claims"`
+	BaseURL       string   `flag:"baseURL" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
+	Email         string   `flag:"email e" validate:"omitempty,validate" help:"users SSO email address, if known"`
+	ClusterID     []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
+	Databases     []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
+	OutputFormat  string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
+	HangAround    bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
+	Timeout       string   `flag:"timeout" validate:"omitempty" help:"time duration before timing out, such as 30s"`
+	EnvName       string   `flag:"env-name" validate:"omitempty" help:"the name of the environment variable to receive the token"`
+	EnvStatus     string   `flag:"env-status" validate:"omitempty" help:"the name of the environment variable to receive the exit status"`
+	Debug         bool     `flag:"debug d" help:"print the recevied claims"`
+	parsedTimeout time.Duration
 }
 
 func getConfig() (config configData) {
@@ -46,11 +51,19 @@ func getConfig() (config configData) {
 	reg := nfigure.NewRegistry(nfigure.WithFiller("flag", flagFiller))
 	err := reg.Request(&config)
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err.Error())
 	}
 	err = reg.Configure()
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err.Error())
+	}
+
+	// Validate the timeout. Use Validator?
+	if config.Timeout != "" {
+		config.parsedTimeout, err = time.ParseDuration(config.Timeout)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
 	}
 	return
 }
@@ -71,13 +84,17 @@ func main2(stdout io.Writer, config configData) {
 			return
 		}
 
-		done := handle(w, r, svr, stdout, path, config)
+		done, status := handle(w, r, svr, stdout, path, config)
 		if done || !config.HangAround {
+			if config.EnvStatus != "" {
+				fmt.Fprintln(stdout, fmt.Sprintf("%s=%v", config.EnvStatus, status))
+			}
 			wg.Done()
 		}
 	}))
 
 	svr.Start()
+	go waitForTimeout(config.parsedTimeout)
 
 	browser.Stdout = browser.Stderr
 
@@ -94,13 +111,26 @@ func main2(stdout io.Writer, config configData) {
 	}
 	url := config.BaseURL + "?" + values.Encode()
 	err := browser.OpenURL(url)
+	err = errors.New("foo")
 	if err != nil {
-		panic("Could not open browser: " + err.Error())
+		if config.EnvStatus != "" {
+			fmt.Fprintln(stdout, fmt.Sprintf("%s=1", config.EnvStatus))
+		}
+		log.Fatal("Could not open browser: " + err.Error())
 	}
 
 	wg.Wait()
 
 	svr.Close()
+}
+
+// waitForTimeout will wait for the specified duration. If the duration elapses, a fatal error will be logged.
+func waitForTimeout(timeout time.Duration) {
+	if timeout == 0 {
+		return
+	}
+	time.Sleep(timeout)
+	log.Fatal(fmt.Sprintf("timeout after %v", timeout))
 }
 
 type Claims struct {
@@ -126,7 +156,7 @@ func (c Claims) Valid() error {
 	return nil
 }
 
-func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string, config configData) (result bool) {
+func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string, config configData) (result bool, status int) {
 	defer func() {
 		if !result && config.OutputFormat == "json" && !config.HangAround {
 			fmt.Fprintln(stdout, "{}")
@@ -136,7 +166,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	defer r.Body.Close()
 	if r.Method != "POST" {
 		http.Error(w, "POST expected", 400)
-		return false
+		return false, 1
 	}
 	switch r.URL.String() {
 	case svr.URL + path, path:
@@ -144,13 +174,13 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	default:
 		http.Error(w, fmt.Sprintf("route not found: '%s' != '%s'", r.URL.String(), svr.URL+path), 404)
 		// http.Error(w, "route not found", 404)
-		return false
+		return false, 1
 	}
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Bad read from request: %s", err)
 		http.Error(w, "bad read", 500)
-		return false
+		return false, 1
 	}
 	jwtParser := jwt.NewParser()
 	var claims Claims
@@ -158,7 +188,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	if err != nil {
 		log.Printf("Could not parse claims: %s", err)
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
-		return false
+		return false, 1
 	}
 	if config.Debug {
 		log.Println("JWT", string(raw))
@@ -170,7 +200,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	if err := claims.Valid(); err != nil {
 		log.Printf("Could not parse claims: %s", err)
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
-		return false
+		return false, 1
 	}
 	var username string
 	if claims.Username != "" {
@@ -178,9 +208,15 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	} else {
 		username = claims.Subject
 	}
+
+	prefix := ""
+	if config.EnvName != "" {
+		prefix = config.EnvName + "="
+	}
+
 	switch config.OutputFormat {
 	case "jwt":
-		fmt.Fprintln(stdout, string(raw))
+		fmt.Fprintln(stdout, prefix+string(raw))
 	case "json":
 		output := AuthHelperOutput{
 			ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
@@ -193,12 +229,12 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		if err != nil {
 			log.Printf("Could not marshal output: %s", err)
 			http.Error(w, "could not marshal output "+err.Error(), 500)
-			return false
+			return false, 1
 		}
-		fmt.Fprintln(stdout, string(enc))
+		fmt.Fprintln(stdout, prefix+string(enc))
 	default:
-		panic("unreachable")
+		log.Fatal("unreachable")
 	}
-	w.WriteHeader(204)
-	return true
+	w.WriteHeader(http.StatusNoContent)
+	return true, 0
 }
