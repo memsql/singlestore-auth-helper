@@ -86,7 +86,7 @@ func main2(stdout io.Writer, config configData) {
 		done, status := handle(w, r, svr, stdout, path, config)
 		if done || !config.HangAround {
 			if config.EnvStatus != "" {
-				fmt.Fprintln(stdout, fmt.Sprintf("%s=%v", config.EnvStatus, status))
+				fmt.Fprintf(stdout, "%s=%v\n", config.EnvStatus, status)
 			}
 			wg.Done()
 		}
@@ -112,7 +112,7 @@ func main2(stdout io.Writer, config configData) {
 	err := browser.OpenURL(url)
 	if err != nil {
 		if config.EnvStatus != "" {
-			fmt.Fprintln(stdout, fmt.Sprintf("%s=1", config.EnvStatus))
+			fmt.Fprintf(stdout, "%s=1\n", config.EnvStatus)
 		}
 		fatal(err.Error(), config.EnvStatus)
 	}
