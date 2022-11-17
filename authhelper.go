@@ -32,15 +32,15 @@ func main() {
 }
 
 type configData struct {
-	BaseURL       string   `flag:"baseURL" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
-	Email         string   `flag:"email e" validate:"omitempty,validate" help:"users SSO email address, if known"`
+	BaseURL       string   `flag:"baseURL" validate:"url" default:"https://portal.singlestore.com/engine-sso" help:"override the URL passed to the browser"`
+	Email         string   `flag:"email e" validate:"omitempty,email" help:"users SSO email address, if known"`
 	ClusterID     []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
 	Databases     []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
 	OutputFormat  string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
 	HangAround    bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
-	Timeout       string   `flag:"timeout" validate:"omitempty" help:"time duration before timing out, such as 30s"`
-	EnvName       string   `flag:"env-name" validate:"omitempty" help:"the name of the environment variable to receive the token"`
-	EnvStatus     string   `flag:"env-status" validate:"omitempty" help:"the name of the environment variable to receive the exit status"`
+	Timeout       string   `flag:"timeout" help:"time duration before timing out, such as 30s"`
+	EnvName       string   `flag:"env-name" help:"the name of the environment variable to receive the token"`
+	EnvStatus     string   `flag:"env-status" help:"the name of the environment variable to receive the exit status"`
 	Debug         bool     `flag:"debug d" help:"print the recevied claims"`
 	parsedTimeout time.Duration
 }
@@ -176,7 +176,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	}
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Bad read from request: %s", err)
+		log.Printf("Bad read from request: %s\n", err)
 		http.Error(w, "bad read", 500)
 		return false, 1
 	}
@@ -184,7 +184,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 	var claims Claims
 	_, _, err = jwtParser.ParseUnverified(string(raw), &claims)
 	if err != nil {
-		log.Printf("Could not parse claims: %s", err)
+		log.Printf("Could not parse claims: %s\n", err)
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false, 1
 	}
@@ -196,7 +196,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		}
 	}
 	if err := claims.Valid(); err != nil {
-		log.Printf("Could not parse claims: %s", err)
+		log.Printf("Could not parse claims: %s\n", err)
 		http.Error(w, "could not parse claims: "+err.Error(), 400)
 		return false, 1
 	}
@@ -225,7 +225,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		}
 		enc, err := json.Marshal(output)
 		if err != nil {
-			log.Printf("Could not marshal output: %s", err)
+			log.Printf("Could not marshal output: %s\n", err)
 			http.Error(w, "could not marshal output "+err.Error(), 500)
 			return false, 1
 		}
@@ -239,7 +239,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 
 func fatal(msg string, envStatus string) {
 	if envStatus != "" {
-		log.Printf("%s=1", envStatus)
+		log.Printf("%s=1\n", envStatus)
 	}
 	log.Fatal(msg)
 }

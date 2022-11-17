@@ -32,7 +32,7 @@ Note: the Safari browser is not compatible with the `singlestore-auth-helper` be
 To set the results of the auth-helper in environment variables for use in scripting, use the `env-name` and `env-status` command line options. When these are used, the status and token are prefixed with the given name, such as:
 
 ```sh
-authhelper --env-status=STATUS --env-name=TOKEN
+singlestore-auth-helper --env-status=STATUS --env-name=TOKEN
 
 STATUS=0
 TOKEN=eyJhbGcibW9zc0BzaW5nbGVzdG9yZS5jb20iLCJhdWQiOlsiZW5naW5lIiwiIXBvcnRhbCJdLCJleHAiOjE
@@ -41,7 +41,7 @@ TOKEN=eyJhbGcibW9zc0BzaW5nbGVzdG9yZS5jb20iLCJhdWQiOlsiZW5naW5lIiwiIXBvcnRhbCJdLC
 The output can be evaluated, thus setting the environment variables:
 
 ```shell
-eval $(authhelper --env-status=STATUS --env-name=TOKEN)
+eval $(singlestore-auth-helper --env-status=STATUS --env-name=TOKEN)
 
 echo $TOKEN
 eyJhbGcibW9zc0BzaW5nbGVzdG9yZS5jb20iLCJhdWQiOlsiZW5naW5lIiwiIXBvcnRhbCJdLCJleHAiOjE
