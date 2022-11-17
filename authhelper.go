@@ -51,18 +51,18 @@ func getConfig() (config configData) {
 	reg := nfigure.NewRegistry(nfigure.WithFiller("flag", flagFiller))
 	err := reg.Request(&config)
 	if err != nil {
-		log.Fatal(err.Error())
+		fatal(err.Error(), "")
 	}
 	err = reg.Configure()
 	if err != nil {
-		log.Fatal(err.Error())
+		fatal(err.Error(), "")
 	}
 
 	// Validate the timeout. Use Validator?
 	if config.Timeout != "" {
 		config.parsedTimeout, err = time.ParseDuration(config.Timeout)
 		if err != nil {
-			log.Fatal(err.Error())
+			fatal(err.Error(), config.EnvStatus)
 		}
 	}
 	return
@@ -94,7 +94,7 @@ func main2(stdout io.Writer, config configData) {
 	}))
 
 	svr.Start()
-	go waitForTimeout(config.parsedTimeout)
+	go waitForTimeout(config)
 
 	browser.Stdout = browser.Stderr
 
@@ -116,7 +116,7 @@ func main2(stdout io.Writer, config configData) {
 		if config.EnvStatus != "" {
 			fmt.Fprintln(stdout, fmt.Sprintf("%s=1", config.EnvStatus))
 		}
-		log.Fatal("Could not open browser: " + err.Error())
+		fatal(err.Error(), config.EnvStatus)
 	}
 
 	wg.Wait()
@@ -125,12 +125,12 @@ func main2(stdout io.Writer, config configData) {
 }
 
 // waitForTimeout will wait for the specified duration. If the duration elapses, a fatal error will be logged.
-func waitForTimeout(timeout time.Duration) {
-	if timeout == 0 {
+func waitForTimeout(config configData) {
+	if config.parsedTimeout == 0 {
 		return
 	}
-	time.Sleep(timeout)
-	log.Fatal(fmt.Sprintf("timeout after %v", timeout))
+	time.Sleep(config.parsedTimeout)
+	fatal(fmt.Sprintf("timeout after %v", config.parsedTimeout), config.EnvStatus)
 }
 
 type Claims struct {
@@ -233,8 +233,15 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 		}
 		fmt.Fprintln(stdout, prefix+string(enc))
 	default:
-		log.Fatal("unreachable")
+		fatal("unreachable", config.EnvStatus)
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return true, 0
+}
+
+func fatal(msg string, envStatus string) {
+	if envStatus != "" {
+		log.Printf("%s=1", envStatus)
+	}
+	log.Fatal(msg)
 }
