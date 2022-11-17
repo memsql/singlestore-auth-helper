@@ -76,7 +76,7 @@ func main2(stdout io.Writer, config configData) {
 	// Using httptest since it takes care of picking a random port
 	var svr *httptest.Server
 	svr = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("handle %v %v\n", r.Method, r.URL.String())
+
 		// Special case for the OPTIONS request. Just return the Allow header with POST.
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Allow", http.MethodPost)
