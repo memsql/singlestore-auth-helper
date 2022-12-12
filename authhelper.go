@@ -86,7 +86,7 @@ func main2(stdout io.Writer, config configData) {
 		done, status := handle(w, r, svr, stdout, path, config)
 		if done || !config.HangAround {
 			if config.EnvStatus != "" {
-				fmt.Fprintf(stdout, "%s=%v\n", config.EnvStatus, status)
+				fmt.Fprintf(stdout, "export %s=%v\n", config.EnvStatus, status)
 			}
 			wg.Done()
 		}
@@ -112,7 +112,7 @@ func main2(stdout io.Writer, config configData) {
 	err := browser.OpenURL(url)
 	if err != nil {
 		if config.EnvStatus != "" {
-			fmt.Fprintf(stdout, "%s=1\n", config.EnvStatus)
+			fmt.Fprintf(stdout, "export %s=1\n", config.EnvStatus)
 		}
 		fatal(err.Error(), config.EnvStatus)
 	}
@@ -209,7 +209,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 
 	prefix := ""
 	if config.EnvName != "" {
-		prefix = config.EnvName + "="
+		prefix = "export " + config.EnvName + "="
 	}
 
 	switch config.OutputFormat {
@@ -239,7 +239,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 
 func fatal(msg string, envStatus string) {
 	if envStatus != "" {
-		log.Printf("%s=1\n", envStatus)
+		log.Printf("export %s=1\n", envStatus)
 	}
 	log.Fatal(msg)
 }
