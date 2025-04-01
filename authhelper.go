@@ -76,7 +76,6 @@ func main2(stdout io.Writer, config configData) {
 	// Using httptest since it takes care of picking a random port
 	var svr *httptest.Server
 	svr = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		// Special case for the OPTIONS request. Just return the Allow header with POST.
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Allow", http.MethodPost)
@@ -86,7 +85,10 @@ func main2(stdout io.Writer, config configData) {
 		done, status := handle(w, r, svr, stdout, path, config)
 		if done || !config.HangAround {
 			if config.EnvStatus != "" {
-				fmt.Fprintf(stdout, "export %s=%v\n", config.EnvStatus, status)
+				_, err := fmt.Fprintf(stdout, "export %s=%v\n", config.EnvStatus, status)
+				if err != nil {
+					panic(err)
+				}
 			}
 			wg.Done()
 		}
@@ -112,7 +114,10 @@ func main2(stdout io.Writer, config configData) {
 	err := browser.OpenURL(url)
 	if err != nil {
 		if config.EnvStatus != "" {
-			fmt.Fprintf(stdout, "export %s=1\n", config.EnvStatus)
+			_, err := fmt.Fprintf(stdout, "export %s=1\n", config.EnvStatus)
+			if err != nil {
+				panic(err)
+			}
 		}
 		fatal(err.Error(), config.EnvStatus)
 	}
@@ -143,13 +148,13 @@ func (c Claims) Valid() error {
 		return err
 	}
 	if c.Subject == "" && c.Username == "" {
-		return fmt.Errorf("Missing 'sub' and 'username' in claims")
+		return fmt.Errorf("missing 'sub' and 'username' in claims")
 	}
 	if c.Email == "" {
-		return fmt.Errorf("Missing 'email' in claims")
+		return fmt.Errorf("missing 'email' in claims")
 	}
 	if !c.VerifyExpiresAt(time.Now().Add(time.Minute), true) {
-		return fmt.Errorf("Invalid/missing 'exp' in claims")
+		return fmt.Errorf("invalid/missing 'exp' in claims")
 	}
 	return nil
 }
@@ -157,10 +162,14 @@ func (c Claims) Valid() error {
 func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout io.Writer, path string, config configData) (result bool, status int) {
 	defer func() {
 		if !result && config.OutputFormat == "json" && !config.HangAround {
-			fmt.Fprintln(stdout, "{}")
+			_, err := fmt.Fprintln(stdout, "{}")
+			if err != nil {
+				panic(err)
+			}
 		}
 	}()
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	//nolint:errcheck // ignore error from Close
 	defer r.Body.Close()
 	if r.Method != "POST" {
 		http.Error(w, "POST expected", 400)
@@ -214,7 +223,10 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 
 	switch config.OutputFormat {
 	case "jwt":
-		fmt.Fprintln(stdout, prefix+string(raw))
+		_, err = fmt.Fprintln(stdout, prefix+string(raw))
+		if err != nil {
+			panic(err)
+		}
 	case "json":
 		output := AuthHelperOutput{
 			ExpiresAt:          claims.ExpiresAt.Format(time.RFC3339),
@@ -229,7 +241,10 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 			http.Error(w, "could not marshal output "+err.Error(), 500)
 			return false, 1
 		}
-		fmt.Fprintln(stdout, prefix+string(enc))
+		_, err = fmt.Fprintln(stdout, prefix+string(enc))
+		if err != nil {
+			panic(err)
+		}
 	default:
 		fatal("unreachable", config.EnvStatus)
 	}
