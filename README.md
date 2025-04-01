@@ -6,6 +6,10 @@ Install:
 
 	go install github.com/memsql/singlestore-auth-helper@latest
 
+To override the location:
+
+	env GOBIN=/some/bin go install github.com/memsql/singlestore-auth-helper@latest
+
 ---
 
 The singlestore-auth-helper is a small utility that opens a browser to a well-known
