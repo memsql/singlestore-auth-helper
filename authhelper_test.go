@@ -70,7 +70,6 @@ func TestAuthHelperJSON(t *testing.T) {
 			testAuthHelper(t, "json", tc.code, tc.want, tc.claims)
 		})
 	}
-
 }
 
 func TestAuthHelperJWT(t *testing.T) {
@@ -90,6 +89,7 @@ func TestAuthHelperDefault(t *testing.T) {
 func testAuthHelper(t *testing.T, format string, httpError int, expectedUsername string, baseClaims jwt.MapClaims) {
 	dir, err := os.MkdirTemp("", "ahtest")
 	require.NoError(t, err, "mktmp")
+	//nolint:errcheck // ignore error from RemoveAll
 	defer os.RemoveAll(dir)
 
 	script := fmt.Sprintf(`#!/bin/sh
@@ -97,16 +97,18 @@ echo "$*" > %s/.args.$$
 mv %s/.args.$$ %s/args.$$
 `, dir, dir, dir)
 
-	err = os.WriteFile(dir+"/xdg-open", []byte(script), 0755)
+	err = os.WriteFile(dir+"/xdg-open", []byte(script), 0o755)
 	require.NoError(t, err, "write script")
 
-	err = os.WriteFile(dir+"/open", []byte(script), 0755)
+	err = os.WriteFile(dir+"/open", []byte(script), 0o755)
 	require.NoError(t, err, "write script")
 
-	os.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+	err = os.Setenv("PATH", dir+":"+os.Getenv("PATH"))
+	require.NoError(t, err)
 
 	watcher, err := fsnotify.NewWatcher()
 	require.NoError(t, err, "new watcher")
+	//nolint:errcheck // ignore error from Close
 	defer watcher.Close()
 
 	watchResults := make(chan error)
@@ -262,6 +264,7 @@ func fakeBrowser(t *testing.T, us string, claims jwt.MapClaims, httpError int) e
 	if err != nil {
 		return fmt.Errorf("POST to %s error: %w", returnTo, err)
 	}
+	//nolint:errcheck // ignore error from Close
 	defer resp.Body.Close()
 	bod, _ := io.ReadAll(resp.Body)
 	if len(bod) != 0 {
