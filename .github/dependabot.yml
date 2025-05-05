@@ -5,14 +5,8 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
-    reviewers:
-      - muir
-      - dncohen
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: "daily"
-    reviewers:
-      - muir
-      - dncohen
