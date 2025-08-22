@@ -22,13 +22,13 @@ output so that the caller of the singlestore-auth-helper can use it for database
 With a mysql client:
 
 ```sh
-mysql -u $EMAIL_ADDRESS -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --password=`singlestore-auth-helper` --ssl=TRUE
+mysql -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u '' --password=`singlestore-auth-helper` --ssl=TRUE
 ```
 
 With a singlestore client:
 
 ```sh
-singlestore -u $EMAIL_ADDRESS -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --password=`singlestore-auth-helper` --ssl=TRUE --enable-cleartext-plugin
+singlestore -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u '' --password=`singlestore-auth-helper` --ssl=TRUE --enable-cleartext-plugin
 ```
 
 Note: the Safari browser is not compatible with the `singlestore-auth-helper` because it lacks a cross-site-scripting exception for localhost.
