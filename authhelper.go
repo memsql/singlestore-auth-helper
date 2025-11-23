@@ -36,7 +36,7 @@ type configData struct {
 	Email         string   `flag:"email e" validate:"omitempty,email" help:"users SSO email address, if known"`
 	ClusterID     []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
 	Databases     []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
-	OutputFormat  string   `flag:"output o" validate:"oneof=jwt json cnf stdout" default:"jwt" help:"output format (jwt, json, cnf, stdout)"`
+	OutputFormat  string   `flag:"output o" validate:"oneof=jwt json cnf stdout" default:"jwt" help:"output format (jwt, json, cnf, stdout), cnf outputs user and password in mysql cnf format, stdout outputs 'username password'"`
 	HangAround    bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
 	Timeout       string   `flag:"timeout" help:"time duration before timing out, such as 30s"`
 	EnvName       string   `flag:"env-name" help:"the name of the environment variable to receive the token"`
