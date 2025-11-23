@@ -258,7 +258,7 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 			panic(err)
 		}
 	default:
-		fatal("unreachable", claims.Username)
+		fatal("unreachable", config.EnvStatus)
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return true, 0
