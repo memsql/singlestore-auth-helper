@@ -20,15 +20,22 @@ The idea is that the browser session will be used to capture a JWT. The JWT is t
 output so that the caller of the singlestore-auth-helper can use it for database access.
 
 With a mysql client:
+```sh
+mysql --defaults-file=<(./singlestore-auth-helper -o cnf) -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --ssl=TRUE
+```
+OR
 
 ```sh
-mysql -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u '' --password=`singlestore-auth-helper` --ssl=TRUE
+read -r DBUSER DBPASS < <(./singlestore-auth-helper -o stdout)
+mysql -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u "$DBUSER" --password="$DBPASS" --ssl=TRUE
 ```
 
 With a singlestore client:
 
 ```sh
-singlestore -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u '' --password=`singlestore-auth-helper` --ssl=TRUE --enable-cleartext-plugin
+read -r DBUSER DBPASS < <(./singlestore-auth-helper -o stdout)
+singlestore -h $CLUSTER_HOSTNAME  -P $CLUSTER_PORT -u "$DBUSER" --password="$DBPASS" --ssl-mode=REQUIRED --enable-cleartext-plugin
+
 ```
 
 Note: the Safari browser is not compatible with the `singlestore-auth-helper` because it lacks a cross-site-scripting exception for localhost.
