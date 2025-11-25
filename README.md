@@ -21,19 +21,19 @@ output so that the caller of the singlestore-auth-helper can use it for database
 
 With a mysql client:
 ```sh
-mysql --defaults-file=<(./singlestore-auth-helper -o cnf) -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --ssl=TRUE
+mysql --defaults-file=<(singlestore-auth-helper -o cnf) -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT --ssl=TRUE
 ```
 OR
 
 ```sh
-read -r dbuser dbpass < <(./singlestore-auth-helper -o userpass)
+read -r dbuser dbpass < <(singlestore-auth-helper -o userpass)
 mysql -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u "$dbuser" --password="$dbpass" --ssl=TRUE
 ```
 
 With a singlestore client:
 
 ```sh
-read -r dbuser dbpass < <(./singlestore-auth-helper -o userpass)
+read -r dbuser dbpass < <(singlestore-auth-helper -o userpass)
 singlestore -h $CLUSTER_HOSTNAME  -P $CLUSTER_PORT -u "$dbuser" --password="$dbpass" --ssl-mode=REQUIRED --enable-cleartext-plugin
 
 ```
