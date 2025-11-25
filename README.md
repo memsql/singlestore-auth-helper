@@ -26,15 +26,15 @@ mysql --defaults-file=<(./singlestore-auth-helper -o cnf) -h $CLUSTER_HOSTNAME -
 OR
 
 ```sh
-read -r DBUSER DBPASS < <(./singlestore-auth-helper -o stdout)
-mysql -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u "$DBUSER" --password="$DBPASS" --ssl=TRUE
+read -r dbuser dbpass < <(./singlestore-auth-helper -o userpass)
+mysql -h $CLUSTER_HOSTNAME -P $CLUSTER_PORT -u "$dbuser" --password="$dbpass" --ssl=TRUE
 ```
 
 With a singlestore client:
 
 ```sh
-read -r DBUSER DBPASS < <(./singlestore-auth-helper -o stdout)
-singlestore -h $CLUSTER_HOSTNAME  -P $CLUSTER_PORT -u "$DBUSER" --password="$DBPASS" --ssl-mode=REQUIRED --enable-cleartext-plugin
+read -r dbuser dbpass < <(./singlestore-auth-helper -o userpass)
+singlestore -h $CLUSTER_HOSTNAME  -P $CLUSTER_PORT -u "$dbuser" --password="$dbpass" --ssl-mode=REQUIRED --enable-cleartext-plugin
 
 ```
 

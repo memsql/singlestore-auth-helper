@@ -70,7 +70,7 @@ func TestAuthHelperJSON(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			testAuthHelper(t, "json", tc.code, tc.want, tc.claims)
 			testAuthHelper(t, "cnf", tc.code, tc.want, tc.claims)
-			testAuthHelper(t, "stdout", tc.code, tc.want, tc.claims)
+			testAuthHelper(t, "userpass", tc.code, tc.want, tc.claims)
 		})
 	}
 }
@@ -195,9 +195,9 @@ mv %s/.args.$$ %s/args.$$
 				outputUser := strings.TrimSpace(lines[1][strings.Index(lines[1], "user=")+len("user="):])
 				assert.Equal(t, expectedUsername, outputUser, "cnf username")
 				jwtString = strings.TrimSpace(lines[2][len("password="):])
-			case "stdout":
+			case "userpass":
 				outputUser := strings.SplitN(strings.TrimSpace(buf.String()), " ", 2)[0]
-				assert.Equal(t, expectedUsername, outputUser, "stdout username")
+				assert.Equal(t, expectedUsername, outputUser, "userpass username")
 				jwtString = strings.TrimSpace(buf.String())[strings.Index(buf.String(), " ")+1:]
 			default:
 				assert.Fail(t, "unexpected format")
