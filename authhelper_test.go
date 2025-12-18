@@ -1,5 +1,6 @@
 //go:build linux || darwin || freebsd || netbsd || openbsd || dragonfly
-// +build linux darwin freebsd netbsd openbsd dragonfly
+
+// linux darwin freebsd netbsd openbsd dragonfly
 
 package main
 
@@ -68,6 +69,8 @@ func TestAuthHelperJSON(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			testAuthHelper(t, "json", tc.code, tc.want, tc.claims)
+			testAuthHelper(t, "cnf", tc.code, tc.want, tc.claims)
+			testAuthHelper(t, "userpass", tc.code, tc.want, tc.claims)
 		})
 	}
 }
@@ -187,6 +190,15 @@ mv %s/.args.$$ %s/args.$$
 				jwtString = output.PasswordToken
 			case "", "jwt":
 				jwtString = buf.String()
+			case "cnf":
+				lines := strings.Split(buf.String(), "\n")
+				outputUser := strings.TrimSpace(lines[1][strings.Index(lines[1], "user=")+len("user="):])
+				assert.Equal(t, expectedUsername, outputUser, "cnf username")
+				jwtString = strings.TrimSpace(lines[2][len("password="):])
+			case "userpass":
+				outputUser := strings.SplitN(strings.TrimSpace(buf.String()), " ", 2)[0]
+				assert.Equal(t, expectedUsername, outputUser, "userpass username")
+				jwtString = strings.TrimSpace(buf.String())[strings.Index(buf.String(), " ")+1:]
 			default:
 				assert.Fail(t, "unexpected format")
 			}

@@ -36,7 +36,7 @@ type configData struct {
 	Email         string   `flag:"email e" validate:"omitempty,email" help:"users SSO email address, if known"`
 	ClusterID     []string `flag:"cluster-id,split=comma" help:"comma-separated list of specific clusters to access"`
 	Databases     []string `flag:"databases,split=comma" help:"comma-separated list of specific databases to access"`
-	OutputFormat  string   `flag:"output o" validate:"oneof=jwt json" default:"jwt" help:"output format (jwt, json)"`
+	OutputFormat  string   `flag:"output o" validate:"oneof=jwt json cnf userpass" default:"jwt" help:"output format (jwt, json, cnf, userpass), cnf outputs user and password in mysql cnf format, userpass outputs 'username password'"`
 	HangAround    bool     `flag:"hang-around" help:"keep listening even if an invalid request was made"`
 	Timeout       string   `flag:"timeout" help:"time duration before timing out, such as 30s"`
 	EnvName       string   `flag:"env-name" help:"the name of the environment variable to receive the token"`
@@ -242,6 +242,18 @@ func handle(w http.ResponseWriter, r *http.Request, svr *httptest.Server, stdout
 			return false, 1
 		}
 		_, err = fmt.Fprintln(stdout, prefix+string(enc))
+		if err != nil {
+			panic(err)
+		}
+	case "cnf":
+		cnf := fmt.Sprintf(
+			"[client]\nuser=%s\npassword=%s", username, string(raw))
+		_, err := fmt.Fprintf(stdout, prefix+cnf)
+		if err != nil {
+			panic(err)
+		}
+	case "userpass":
+		_, err = fmt.Fprintln(stdout, prefix+username+" "+string(raw))
 		if err != nil {
 			panic(err)
 		}
