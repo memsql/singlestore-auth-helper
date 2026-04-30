@@ -1,10 +1,10 @@
 module github.com/memsql/singlestore-auth-helper
 
-go 1.20
+go 1.23
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/muir/nfigure v0.8.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
