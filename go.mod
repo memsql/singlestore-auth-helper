@@ -1,6 +1,6 @@
 module github.com/memsql/singlestore-auth-helper
 
-go 1.20
+go 1.23
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
